@@ -28,14 +28,27 @@ async function run() {
 
         const instructorsCollection = client.db('dwDB').collection('instructors');
         const classesCollection = client.db('dwDB').collection('classes');
+        const cartCollection = client.db('dwDB').collection('carts');
 
+
+        //instructors
         app.get('/instructors', async(req, res) => {
             const result = await instructorsCollection.find().toArray();
             res.send(result);
         })
 
+
+        //classes
         app.get('/classes', async(req, res) => {
             const result = await classesCollection.find().toArray();
+            res.send(result);
+        })
+
+
+        //carts
+        app.post('/carts', async(req, res) => {
+            const item = req.body;
+            const result = await cartCollection.insertOne(item);
             res.send(result);
         })
 
