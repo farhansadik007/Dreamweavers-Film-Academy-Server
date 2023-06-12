@@ -148,6 +148,19 @@ async function run() {
             res.send(result);
         })
 
+        app.post('/classes', verifyJWT, verifyInstructor, async(req, res) => {
+            const newClass = req.body;
+            const result = await classesCollection.insertOne(newClass);
+            res.send(result);
+        })
+
+        app.delete('/classes/:id', verifyJWT, verifyAdmin, async(req, res) => {
+            const id = req.params.id;
+            const query = { _id : new ObjectId(id) };
+            const result = await classesCollection.deleteOne(query);
+            res.send(result);
+        })
+
 
         //carts
         app.get('/carts', verifyJWT, async (req, res) => {
