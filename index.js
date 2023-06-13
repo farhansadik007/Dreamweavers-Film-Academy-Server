@@ -48,12 +48,25 @@ async function run() {
         const paymentCollection = client.db('dwDB').collection('payments');
 
 
+
+        //********************** */
+        //jwt token
+        //********************** */
+
+
+
         app.post('/jwt', (req, res)=> {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '6h'});
 
             res.send({token});
         })
+
+
+        //********************** */
+        //verification
+        //********************** */
+
 
         const verifyAdmin = async(req, res, next) => {
             const email = req.decoded.email;
@@ -75,7 +88,12 @@ async function run() {
             next();
         }
 
+
+        //********************** */
         //users
+        //********************** */
+
+
         app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray();
             res.send(result);
@@ -87,6 +105,13 @@ async function run() {
             const existingUser = await usersCollection.findOne(query);
             if (existingUser) return res.send({ message: 'user already exists' })
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
+
+        app.delete('/users/:email', verifyJWT, verifyAdmin, async(req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const result = await usersCollection.deleteOne(query);
             res.send(result);
         })
 
@@ -112,7 +137,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/users/admin/:id', async (req, res) => {
+        app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -124,7 +149,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/users/instructor/:id', async (req, res) => {
+        app.patch('/users/instructor/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -136,14 +161,24 @@ async function run() {
             res.send(result);
         })
 
+
+        //********************** */
         //instructors
+        //********************** */
+
+
         app.get('/instructors', async (req, res) => {
             const result = await instructorsCollection.find().toArray();
             res.send(result);
         })
 
 
+
+        //********************** */
         //classes
+        //********************** */
+
+
         app.get('/classes', async (req, res) => {
             const result = await classesCollection.find().toArray();
             res.send(result);
@@ -162,8 +197,24 @@ async function run() {
             res.send(result);
         })
 
+        app.get('/classes/:email', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+            }
+            const decodedEmail = req.decoded.email;
+            if(email !== decodedEmail) return res.status(403).send({error: true, message: 'forbidden access'});
 
+            const query = { email: email };
+            const result = await cartCollection.find(query).toArray();
+            res.send(result);
+        })
+
+
+        //********************** */
         //carts
+        //********************** */
+        
         app.get('/carts', verifyJWT, async (req, res) => {
             const email = req.query.email;
             if (!email) {
@@ -177,20 +228,24 @@ async function run() {
             res.send(result);
         })
 
-        app.post('/carts', async (req, res) => {
+        app.post('/carts', verifyJWT, async (req, res) => {
             const item = req.body;
             const result = await cartCollection.insertOne(item);
             res.send(result);
         })
 
-        app.delete('/carts/:id', async (req, res) => {
+        app.delete('/carts/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await cartCollection.deleteOne(query);
             res.send(result);
         })
 
+
+        //********************** */
         //create payment intent
+        //********************** */
+
         app.post('/create-payment-intent', verifyJWT, async(req , res) => {
             const {price} = req.body;
             const amount = price * 100;
@@ -212,6 +267,15 @@ async function run() {
             const deleteResult = await cartCollection.deleteMany(query)
             res.send({ insertResult, deleteResult});
         })
+
+        app.get('/paymenthistory',verifyJWT, async(req, res) => {
+            const result = await paymentCollection.find().toArray();
+            res.send(result);
+        })
+
+
+        //admin panel stats
+
 
         app.get('/admin-stats', verifyJWT, verifyAdmin, async(req, res) => {
             const user = await usersCollection.estimatedDocumentCount();
