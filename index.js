@@ -24,7 +24,6 @@ const verifyJWT = (req, res, next) => {
     })
 }
 
-
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.s6ydyu2.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -40,7 +39,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
         const instructorsCollection = client.db('dwDB').collection('instructors');
         const classesCollection = client.db('dwDB').collection('classes');
@@ -94,7 +93,7 @@ async function run() {
         app.get('/users/admin/:email', verifyJWT, async(req, res) => {
             const email = req.params.email;
 
-            if(req.decoded.email !== email) res.send({admin:false});
+            if(req.decoded.email !== email) return res.send({admin:false});
 
             const query = { email: email };
             const user = await usersCollection.findOne(query);
@@ -105,7 +104,7 @@ async function run() {
         app.get('/users/instructor/:email', verifyJWT, async(req, res) => {
             const email = req.params.email;
 
-            if(req.decoded.email !== email) res.send({instructor:false});
+            if(req.decoded.email !== email) return res.send({instructor:false});
 
             const query = { email: email };
             const user = await usersCollection.findOne(query);
@@ -170,7 +169,6 @@ async function run() {
             if (!email) {
                 res.send([]);
             }
-
             const decodedEmail = req.decoded.email;
             if(email !== decodedEmail) return res.status(403).send({error: true, message: 'forbidden access'});
 
@@ -213,6 +211,22 @@ async function run() {
             const query = { _id: { $in: payment.cartClasses.map(id => new ObjectId(id))}}
             const deleteResult = await cartCollection.deleteMany(query)
             res.send({ insertResult, deleteResult});
+        })
+
+        app.get('/admin-stats', verifyJWT, verifyAdmin, async(req, res) => {
+            const user = await usersCollection.estimatedDocumentCount();
+            const classes = await classesCollection.estimatedDocumentCount();
+            const orders = await paymentCollection.estimatedDocumentCount();
+
+            const payments = await paymentCollection.find().toArray();
+            const revenue = payments.reduce((sum, payment) => sum + payment.price,0)
+
+            res.send({
+                revenue,
+                user,
+                classes,
+                orders
+            })
         })
 
         // Send a ping to confirm a successful connection
